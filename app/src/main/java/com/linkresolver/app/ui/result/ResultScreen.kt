@@ -238,5 +238,7 @@ private fun friendlyMessageFor(result: ResolveResult): String = when (result.sta
         "The website created a redirect loop."
     com.linkresolver.app.domain.model.ResolverStatus.PROTECTED_REDIRECT ->
         "This website requires browser verification or interaction. The app cannot resolve it automatically."
+    com.linkresolver.app.domain.model.ResolverStatus.NO_REDIRECT_FOUND ->
+        "No further redirect was found. The destination may require manual interaction — try 'Open in Browser'."
     else -> "The destination could not be determined."
 }

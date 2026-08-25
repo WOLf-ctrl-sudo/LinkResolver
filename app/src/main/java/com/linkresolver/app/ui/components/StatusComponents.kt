@@ -36,6 +36,11 @@ fun StatusBadge(status: ResolverStatus, modifier: Modifier = Modifier) {
             MaterialTheme.colorScheme.tertiaryContainer,
             MaterialTheme.colorScheme.onTertiaryContainer
         )
+        ResolverStatus.NO_REDIRECT_FOUND -> BadgeStyle(
+            Icons.Filled.Warning, "No Redirect",
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer
+        )
         else -> BadgeStyle(
             Icons.Filled.Error, "Failed",
             MaterialTheme.colorScheme.errorContainer,

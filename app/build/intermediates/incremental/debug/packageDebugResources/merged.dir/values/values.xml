@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">LinkResolver</string>
-    <style name="Theme.LinkResolver" parent="android:Theme.Material.Light.NoActionBar"/>
-</resources>

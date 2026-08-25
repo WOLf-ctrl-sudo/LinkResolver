@@ -177,4 +177,74 @@ class RedirectResolverTest {
         assertEquals(target, result.finalUrl)
         assertTrue(result.redirects.last().statusText!!.contains("Continue"))
     }
+
+    @Test
+    fun `returns NO_REDIRECT_FOUND when no redirects or bypasses are detected`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("<html>Just a plain page</html>"))
+
+        val url = server.url("/plain").toString()
+        val result = resolver.resolve(url, "TestProvider")
+
+        assertEquals(ResolverStatus.NO_REDIRECT_FOUND, result.status)
+        assertEquals(null, result.finalUrl)
+        assertTrue(result.errorMessage!!.contains("No further redirect was found"))
+    }
+
+    @Test
+    fun `extracts bypass link with new anchor text heuristics`() = runTest {
+        val targets = listOf(
+            "https://example.com/click" to "Click here",
+            "https://example.com/download" to "Download",
+            "https://example.com/proceed" to "Proceed",
+            "https://example.com/goto" to "Go to link"
+        )
+
+        for ((target, text) in targets) {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    "<html><body><a href=\"$target\">$text</a></body></html>"
+                )
+            )
+            server.enqueue(MockResponse().setResponseCode(200).setBody("done"))
+
+            val result = resolver.resolve(server.url("/link").toString(), "TestProvider")
+
+            assertEquals(ResolverStatus.SUCCESS, result.status)
+            assertEquals(target, result.finalUrl)
+        }
+    }
+
+    @Test
+    fun `extracts bypass url from new query parameters`() = runTest {
+        val params = listOf("r", "redirect", "to", "out")
+        val target = "https://destination.com/final"
+
+        for (param in params) {
+            val startUrl = server.url("/bypass?$param=$target").toString()
+            server.enqueue(MockResponse().setResponseCode(200).setBody("<html>no redirect here</html>"))
+            server.enqueue(MockResponse().setResponseCode(200).setBody("done"))
+
+            val result = resolver.resolve(startUrl, "TestProvider")
+
+            assertEquals(ResolverStatus.SUCCESS, result.status)
+            assertEquals(target, result.finalUrl)
+        }
+    }
+
+    @Test
+    fun `detects protected page with new markers`() = runTest {
+        val markers = listOf("countdown", "please wait", "unlocking in")
+
+        for (marker in markers) {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    "<html><body>Wait for the $marker...</body></html>"
+                )
+            )
+
+            val result = resolver.resolve(server.url("/gate").toString(), "TestProvider")
+
+            assertEquals(ResolverStatus.PROTECTED_REDIRECT, result.status)
+        }
+    }
 }

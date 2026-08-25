@@ -41,13 +41,17 @@ class RedirectResolver(
         )
 
         // JavaScript redirects like window.location.replace("...") or location.href = "..."
+        // Updated to include window.open and direct location assignment.
         private val JS_REDIRECT_REGEX = Regex(
-            """(?:window\.)?location(?:\.replace|\.href)?\s*[=(]\s*["']([^"']+)["']""",
+            """(?:window\.|self\.|top\.)?(?:location(?:\.replace|\.href)?|open)\s*[=(]\s*["']([^"']+)["']""",
             RegexOption.IGNORE_CASE
         )
 
         // Common parameter names used by shorteners to hide the target URL
-        private val BYPASS_PARAMS = setOf("url", "link", "target", "goto", "destination", "u")
+        private val BYPASS_PARAMS = setOf(
+            "url", "link", "target", "goto", "destination", "u", "r", "redirect", "to", "out",
+            "token", "data", "link_id"
+        )
 
         // Heuristics for pages that require real browser / human interaction
         // (JS challenge pages, CAPTCHA gates, "click to continue" ad-wait
@@ -60,7 +64,10 @@ class RedirectResolver(
             "hcaptcha",
             "cf-chl",
             "please enable javascript",
-            "verifying you are human"
+            "verifying you are human",
+            "countdown",
+            "please wait",
+            "unlocking in"
         )
     }
 
@@ -245,6 +252,14 @@ class RedirectResolver(
                     }
 
                     // No further redirect signal: this is the final destination.
+                    if (currentUrl == startUrl && steps.size <= 1) {
+                        return@withContext failure(
+                            startUrl, providerName, steps, startedAt,
+                            ResolverStatus.NO_REDIRECT_FOUND,
+                            "No further redirect was found. The destination may require manual interaction — try 'Open in Browser'."
+                        )
+                    }
+
                     return@withContext ResolveResult(
                         originalUrl = startUrl,
                         finalUrl = currentUrl,
@@ -329,17 +344,32 @@ class RedirectResolver(
         }
 
         // 3. Look for "Continue" or "Get Link" buttons in the body
-        // We look for <a> tags containing certain text or matching param patterns
-        val anchorRegex = Regex("""<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)</a>""", RegexOption.IGNORE_CASE)
+        // We look for <a> tags containing certain text or matching param patterns,
+        // and also check for <button onclick="..."> patterns.
+        val anchorRegex = Regex("""<(?:a|button)[^>]+(?:href|onclick)=["']([^"']+)["'][^>]*>(.*?)</(?:a|button)>""", RegexOption.IGNORE_CASE)
         val matches = anchorRegex.findAll(html)
         
         for (match in matches) {
-            val href = match.groupValues[1].trim()
+            var href = match.groupValues[1].trim()
             val text = match.groupValues[2].lowercase(Locale.US)
+            
+            // If it was an onclick, extract the URL from the JS snippet
+            if (href.contains("location", ignoreCase = true) || href.contains("open(", ignoreCase = true)) {
+                val jsMatch = JS_REDIRECT_REGEX.find(href)
+                if (jsMatch != null) {
+                    href = jsMatch.groupValues[1]
+                } else {
+                    continue // Skip if we can't parse the onclick URL
+                }
+            }
             
             // Heuristic: If link text contains "continue", "get link", or "skip"
             // AND it's a valid absolute URL (or relative to base)
-            if (text.contains("continue") || text.contains("get link") || text.contains("skip ad")) {
+            if (text.contains("continue") || text.contains("get link") || text.contains("skip ad") ||
+                text.contains("click here") || text.contains("download") || text.contains("proceed") ||
+                text.contains("go to link") || text.contains("open link") || text.contains("direct link") ||
+                text.contains("dual link") || text.contains("fast server") || text.contains("generate link") ||
+                text.contains("unlock link") || text.contains("verify") || text.contains("double click")) {
                 val nextUrl = resolveRelative(baseUrl, href)
                 if (UrlValidator.isSyntacticallyValid(nextUrl) && nextUrl != baseUrl) {
                     return nextUrl to "Bypass Link ($text)"
