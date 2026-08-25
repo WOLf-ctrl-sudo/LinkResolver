@@ -1,8 +1,10 @@
 package com.linkresolver.app
 
+import com.linkresolver.app.data.network.HttpClient
 import com.linkresolver.app.data.network.RedirectResolver
 import com.linkresolver.app.domain.model.ResolverStatus
 import kotlinx.coroutines.test.runTest
+import okhttp3.Dns
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -10,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.net.InetAddress
 
 class RedirectResolverTest {
 
@@ -20,7 +23,28 @@ class RedirectResolverTest {
     fun setUp() {
         server = MockWebServer()
         server.start()
-        resolver = RedirectResolver(maxRedirects = 20)
+
+        val testClient = HttpClient.instance.newBuilder()
+            .dns(object : Dns {
+                override fun lookup(hostname: String): List<InetAddress> =
+                    listOf(InetAddress.getByName("127.0.0.1"))
+            })
+            .addInterceptor { chain ->
+                val request = chain.request()
+                if (request.url.host != "127.0.0.1" && request.url.host != "localhost") {
+                    val newUrl = request.url.newBuilder()
+                        .scheme("http")
+                        .host("127.0.0.1")
+                        .port(server.port)
+                        .build()
+                    chain.proceed(request.newBuilder().url(newUrl).build())
+                } else {
+                    chain.proceed(request)
+                }
+            }
+            .build()
+
+        resolver = RedirectResolver(maxRedirects = 20, client = testClient)
     }
 
     @After
@@ -139,6 +163,9 @@ class RedirectResolverTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("done"))
 
         val result = resolver.resolve(server.url("/js").toString(), "TestProvider")
+
+        println("Result status: ${result.status}")
+        println("Error message: ${result.errorMessage}")
 
         assertEquals(ResolverStatus.SUCCESS, result.status)
         assertEquals("https://example.com/js-target", result.finalUrl)
