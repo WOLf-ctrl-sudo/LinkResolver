@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.linkresolver.app.UrlValidatorTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-08-25T08:39:29.788Z" hostname="HP" time="0.013">
+  <properties/>
+  <testcase name="invalid or dangerous schemes are rejected" classname="com.linkresolver.app.UrlValidatorTest" time="0.001"/>
+  <testcase name="normalization is case and trailing slash insensitive" classname="com.linkresolver.app.UrlValidatorTest" time="0.005"/>
+  <testcase name="normalization strips default ports" classname="com.linkresolver.app.UrlValidatorTest" time="0.0"/>
+  <testcase name="blank input is rejected" classname="com.linkresolver.app.UrlValidatorTest" time="0.0"/>
+  <testcase name="decodes base64-encoded urls correctly" classname="com.linkresolver.app.UrlValidatorTest" time="0.0"/>
+  <testcase name="sensitive query params are stripped when requested" classname="com.linkresolver.app.UrlValidatorTest" time="0.0"/>
+  <testcase name="valid http and https urls are accepted" classname="com.linkresolver.app.UrlValidatorTest" time="0.001"/>
+  <testcase name="returns null for invalid base64 or non-url content" classname="com.linkresolver.app.UrlValidatorTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

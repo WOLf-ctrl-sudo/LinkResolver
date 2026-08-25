@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default platform trust anchors only. HTTPS traffic uses standard system
+  certificate validation. Cleartext (http://) traffic is permitted only
+  because some legacy short-link providers still redirect through plain
+  HTTP hops before landing on an HTTPS destination; no certificate
+  validation is ever bypassed.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
